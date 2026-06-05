@@ -1,18 +1,11 @@
 "use client";
+import QRCodeCard from "../components/QRCodeCard";
 
 import QRScanner from "../components/QRScanner";
 
 import { useLocationStore } from "../lib/useLocationStore";
 import { db } from "../lib/firebase";
 
-function QRCodeCard({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="p-6 bg-slate-800 rounded-xl border border-slate-700">
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-slate-300 break-all">{value}</p>
-    </div>
-  );
-}
 
 import {
   collection,
