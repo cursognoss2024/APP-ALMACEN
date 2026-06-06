@@ -16,18 +16,16 @@ export default function Home() {
   const { currentLocation, setLocation } = useLocationStore();
 
   const [pendingMove, setPendingMove] = useState<any>(null);
+  const [loadingMove, setLoadingMove] = useState(false);
 
   const handleScan = async (value: string) => {
     try {
-      const rawValue = value;
-
       const cleanValue = value
         .replace(/[\n\r\t]/g, "")
         .replace(/\s+/g, "")
         .trim();
 
-      console.log("📷 RAW:", rawValue);
-      console.log("📷 CLEAN:", cleanValue);
+      console.log("📷 SCAN:", cleanValue);
 
       // 📍 UBICACIONES
       if (cleanValue.startsWith("USAC-LOC")) {
@@ -39,7 +37,7 @@ export default function Home() {
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-          alert("⚠️ Ubicación no existe: " + cleanValue);
+          alert("⚠️ Ubicación no existe");
           return;
         }
 
@@ -48,17 +46,13 @@ export default function Home() {
         setLocation(locationData.code);
         setPendingMove(null);
 
-        console.log("📍 LOCATION OK:", locationData);
-
         alert("📍 Ubicación activa: " + locationData.code);
 
         return;
       }
 
-      // 📦 ARTÍCULOS
+      // 📦 ITEMS
       if (cleanValue.startsWith("USAC-ITEM")) {
-        console.log("📦 BUSCANDO ITEM:", cleanValue);
-
         const q = query(
           collection(db, "items"),
           where("code", "==", cleanValue)
@@ -67,14 +61,11 @@ export default function Home() {
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-          alert("⚠️ Artículo no existe: " + cleanValue);
+          alert("⚠️ Artículo no existe");
           return;
         }
 
         const itemData = snapshot.docs[0].data();
-
-        console.log("📦 ITEM ENCONTRADO:", itemData);
-        console.log("📍 UBICACIÓN ACTUAL:", currentLocation);
 
         if (!currentLocation) {
           alert("⚠️ Primero escanea una ubicación");
@@ -85,11 +76,8 @@ export default function Home() {
           setPendingMove(null);
           alert("✅ Correcto: está en esta ubicación");
         } else {
-          console.log("🚨 ENTRÓ EN ELSE - ITEM EN OTRA UBICACIÓN");
-
           setPendingMove({
             ...itemData,
-            currentLocation,
           });
 
           alert(
@@ -103,8 +91,44 @@ export default function Home() {
       alert("QR no reconocido: " + cleanValue);
 
     } catch (error: any) {
-      console.error("🔥 ERROR FIREBASE:", error);
+      console.error(error);
       alert("Error: " + error.message);
+    }
+  };
+
+  const confirmMove = async () => {
+    if (!pendingMove || !currentLocation) return;
+
+    try {
+      setLoadingMove(true);
+
+      const q = query(
+        collection(db, "items"),
+        where("code", "==", pendingMove.code)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert("Artículo no encontrado");
+        return;
+      }
+
+      const docRef = snapshot.docs[0].ref;
+
+      await docRef.update({
+        locationCode: currentLocation,
+      });
+
+      alert("✅ Artículo movido correctamente");
+
+      setPendingMove(null);
+
+    } catch (error: any) {
+      console.error(error);
+      alert("Error moviendo artículo: " + error.message);
+    } finally {
+      setLoadingMove(false);
     }
   };
 
@@ -131,37 +155,32 @@ export default function Home() {
       </div>
 
       {pendingMove && (
-        <div className="p-4 bg-yellow-700 rounded-xl">
+        <div className="p-4 bg-yellow-700 rounded-xl mt-6">
           <h3 className="text-xl font-bold mb-2">
-            Pendiente de movimiento:
+            ⚠️ Mover artículo
           </h3>
 
-          <p>
-            Artículo: <strong>{pendingMove.name}</strong>
-          </p>
+          <p><strong>{pendingMove.name}</strong></p>
+          <p>Código: {pendingMove.code}</p>
+          <p>Ubicación actual: {pendingMove.locationCode}</p>
+          <p>Nueva ubicación: {currentLocation}</p>
 
-          <p>
-            Código: <strong>{pendingMove.code}</strong>
-          </p>
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={confirmMove}
+              disabled={loadingMove}
+              className="bg-green-600 px-4 py-2 rounded"
+            >
+              {loadingMove ? "Moviendo..." : "SI, MOVER"}
+            </button>
 
-          <p>
-            Ubicación actual:{" "}
-            <strong>{pendingMove.locationCode}</strong>
-          </p>
-
-          <p>
-            Nueva ubicación:{" "}
-            <strong>{pendingMove.currentLocation}</strong>
-          </p>
-
-          <button
-            className="mt-4 bg-green-600 px-4 py-2 rounded"
-            onClick={() => {
-              alert("Aquí siguiente paso: mover en Firestore 🚀");
-            }}
-          >
-            MOVER A ESTA UBICACIÓN
-          </button>
+            <button
+              onClick={() => setPendingMove(null)}
+              className="bg-red-600 px-4 py-2 rounded"
+            >
+              NO
+            </button>
+          </div>
         </div>
       )}
 
