@@ -14,11 +14,11 @@ import {
 
 export default function Home() {
   const { currentLocation, setLocation } = useLocationStore();
-  const [pendingMove, setPendingMove] = useState<any | null>(null);
+
+  const [pendingMove, setPendingMove] = useState<any>(null);
 
   const handleScan = async (value: string) => {
     try {
-      // 🧼 LIMPIEZA ROBUSTA DEL QR
       const rawValue = value;
 
       const cleanValue = value
@@ -46,6 +46,7 @@ export default function Home() {
         const locationData = snapshot.docs[0].data();
 
         setLocation(locationData.code);
+        setPendingMove(null);
 
         console.log("📍 LOCATION OK:", locationData);
 
@@ -73,28 +74,28 @@ export default function Home() {
         const itemData = snapshot.docs[0].data();
 
         console.log("📦 ITEM ENCONTRADO:", itemData);
+        console.log("📍 UBICACIÓN ACTUAL:", currentLocation);
 
         if (!currentLocation) {
           alert("⚠️ Primero escanea una ubicación");
           return;
         }
 
-        console.log("📍 UBICACIÓN ACTUAL:", currentLocation);
-
         if (itemData.locationCode === currentLocation) {
-           setPendingMove(null);
+          setPendingMove(null);
+          alert("✅ Correcto: está en esta ubicación");
+        } else {
+          console.log("🚨 ENTRÓ EN ELSE - ITEM EN OTRA UBICACIÓN");
 
-            alert("✅ Correcto: está en esta ubicación");
-        }  else {
-           setPendingMove({
-           ...itemData,
-          currentLocation,
-        });
+          setPendingMove({
+            ...itemData,
+            currentLocation,
+          });
 
-  alert(
-    `⚠️ Está en otra ubicación:\n${itemData.locationCode}\nActual: ${currentLocation}`
-  );
-}
+          alert(
+            `⚠️ Está en otra ubicación:\n${itemData.locationCode}\nActual: ${currentLocation}`
+          );
+        }
 
         return;
       }
@@ -126,10 +127,44 @@ export default function Home() {
       </div>
 
       <div className="mb-10">
-       <QRScanner onScan={handleScan} />
+        <QRScanner onScan={handleScan} />
       </div>
 
-      <p>PRUEBA</p>
+      {pendingMove && (
+        <div className="p-4 bg-yellow-700 rounded-xl">
+          <h3 className="text-xl font-bold mb-2">
+            Pendiente de movimiento:
+          </h3>
+
+          <p>
+            Artículo: <strong>{pendingMove.name}</strong>
+          </p>
+
+          <p>
+            Código: <strong>{pendingMove.code}</strong>
+          </p>
+
+          <p>
+            Ubicación actual:{" "}
+            <strong>{pendingMove.locationCode}</strong>
+          </p>
+
+          <p>
+            Nueva ubicación:{" "}
+            <strong>{pendingMove.currentLocation}</strong>
+          </p>
+
+          <button
+            className="mt-4 bg-green-600 px-4 py-2 rounded"
+            onClick={() => {
+              alert("Aquí siguiente paso: mover en Firestore 🚀");
+            }}
+          >
+            MOVER A ESTA UBICACIÓN
+          </button>
+        </div>
+      )}
+
     </main>
   );
 }
