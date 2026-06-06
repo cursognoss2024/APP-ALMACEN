@@ -1,11 +1,9 @@
 "use client";
-import QRCodeCard from "../components/QRCodeCard";
 
+import { useState } from "react";
 import QRScanner from "../components/QRScanner";
-
 import { useLocationStore } from "../lib/useLocationStore";
 import { db } from "../lib/firebase";
-
 
 import {
   collection,
@@ -16,20 +14,32 @@ import {
 
 export default function Home() {
   const { currentLocation, setLocation } = useLocationStore();
+  const [pendingMove, setPendingMove] = useState<any | null>(null);
 
   const handleScan = async (value: string) => {
     try {
-      // 📍 ESCANEAR UBICACIÓN
-      if (value.startsWith("USAC-LOC")) {
+      // 🧼 LIMPIEZA ROBUSTA DEL QR
+      const rawValue = value;
+
+      const cleanValue = value
+        .replace(/[\n\r\t]/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+
+      console.log("📷 RAW:", rawValue);
+      console.log("📷 CLEAN:", cleanValue);
+
+      // 📍 UBICACIONES
+      if (cleanValue.startsWith("USAC-LOC")) {
         const q = query(
           collection(db, "locations"),
-          where("code", "==", value)
+          where("code", "==", cleanValue)
         );
 
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-          alert("⚠️ Ubicación no existe");
+          alert("⚠️ Ubicación no existe: " + cleanValue);
           return;
         }
 
@@ -37,48 +47,63 @@ export default function Home() {
 
         setLocation(locationData.code);
 
+        console.log("📍 LOCATION OK:", locationData);
+
         alert("📍 Ubicación activa: " + locationData.code);
 
         return;
       }
 
-      // 📦 ESCANEAR ARTÍCULO
-      if (value.startsWith("USAC-ITEM")) {
+      // 📦 ARTÍCULOS
+      if (cleanValue.startsWith("USAC-ITEM")) {
+        console.log("📦 BUSCANDO ITEM:", cleanValue);
+
         const q = query(
           collection(db, "items"),
-          where("code", "==", value)
+          where("code", "==", cleanValue)
         );
 
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-          alert("⚠️ Artículo no existe");
+          alert("⚠️ Artículo no existe: " + cleanValue);
           return;
         }
 
         const itemData = snapshot.docs[0].data();
+
+        console.log("📦 ITEM ENCONTRADO:", itemData);
 
         if (!currentLocation) {
           alert("⚠️ Primero escanea una ubicación");
           return;
         }
 
+        console.log("📍 UBICACIÓN ACTUAL:", currentLocation);
+
         if (itemData.locationCode === currentLocation) {
-          alert("✅ Correcto: está en esta ubicación");
-        } else {
-          alert(
-            `⚠️ Está en otra ubicación:\n${itemData.locationCode}\nActual: ${currentLocation}`
-          );
-        }
+           setPendingMove(null);
+
+            alert("✅ Correcto: está en esta ubicación");
+        }  else {
+           setPendingMove({
+           ...itemData,
+          currentLocation,
+        });
+
+  alert(
+    `⚠️ Está en otra ubicación:\n${itemData.locationCode}\nActual: ${currentLocation}`
+  );
+}
 
         return;
       }
 
-      alert("QR no reconocido: " + value);
+      alert("QR no reconocido: " + cleanValue);
 
-    } catch (error) {
-      console.error(error);
-      alert("Error conectando con Firebase: " + error);
+    } catch (error: any) {
+      console.error("🔥 ERROR FIREBASE:", error);
+      alert("Error: " + error.message);
     }
   };
 
@@ -101,23 +126,10 @@ export default function Home() {
       </div>
 
       <div className="mb-10">
-        <QRScanner onScan={handleScan} />
+       <QRScanner onScan={handleScan} />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-
-        <QRCodeCard
-          title="Ubicación de prueba"
-          value="USAC-LOC-000001"
-        />
-
-        <QRCodeCard
-          title="Artículo de prueba"
-          value="USAC-ITEM-000001"
-        />
-
-      </div>
-
+      <p>PRUEBA</p>
     </main>
   );
 }
