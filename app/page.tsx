@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 
 export default function Home() {
@@ -116,7 +117,7 @@ export default function Home() {
 
       const docRef = snapshot.docs[0].ref;
 
-      await docRef.update({
+      await updateDoc(docRef, {
         locationCode: currentLocation,
       });
 
